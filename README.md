@@ -2,6 +2,9 @@
 
 
 ###List of tasks to complete
-* ls - Command to be implemented
-* cat - Command to be implemented
-* 
+* myls - Command to be implemented
+* mycat - Command to be implemented
+* mycp - Command to be implemented
+* Makefiles - Makefile to generate all the object files in sub directories
+* Shell
+    * Parse Commandline Text
