@@ -18,6 +18,8 @@ static const char *people[] = {
     NULL
 };
 
+char userInput = NULL;
+
 struct passwd *user;
 
 void printWelcomeScreen();
