@@ -8,3 +8,5 @@
 * Makefiles - Makefile to generate all the object files in sub directories
 * Shell
     * Parse Commandline Text
+    * Design the main loop to execute files
+    * Set up the environment variables
