@@ -2,4 +2,6 @@
 
 
 ###List of tasks to complete
-* ls
+* ls - Command to be implemented
+* cat - Command to be implemented
+* 
