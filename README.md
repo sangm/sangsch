@@ -4,7 +4,8 @@
 ###List of tasks to complete
 * myls - Command to be implemented
 * ~~mycat - Command to be implemented~~
-    * ![alt text](https://github.com/sangm/sangsch/img/mycat.png "Demonstration of mycat")
+    * ![alt text](https://github.com/sangm/sangsch/blob/master/img/mycat.png "Demonstration of mycat")
+
 * mycp - Command to be implemented
 * Makefiles - Makefile to generate all the object files in sub directories
 * Shell
