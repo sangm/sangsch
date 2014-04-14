@@ -5,6 +5,8 @@
 * myls - Command to be implemented
 * ~~mycat - Command to be implemented~~
     * ![Screenshot](https://github.com/sangm/sangsch/blob/master/img/mycat.png)
+    * ![ScreenShot](https://raw.github.com/karacas/imgLiquid/master/tests/logoimgliquid.png)
+
 
 * mycp - Command to be implemented
 * Makefiles - Makefile to generate all the object files in sub directories
