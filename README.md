@@ -4,7 +4,7 @@
 ###List of tasks to complete
 * myls - Command to be implemented
 * ~~mycat - Command to be implemented~~
-    * ![Screenshot](https://github.com/sangm/sangsch/blob/master/img/mycat.png)
+    * ![Screenshot](/img/mycat.png?raw=true)
     * ![ScreenShot](https://raw.github.com/karacas/imgLiquid/master/tests/logoimgliquid.png)
 
 
