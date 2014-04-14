@@ -10,20 +10,23 @@
 
 int mycat(FILE *fp, char *fileName)
 {
+    char buffer[MAX_SIZE];
+    char *n;
+
     if (!fp) {
         printf("mycat: %s: %s\n", fileName, strerror(errno));
         return -1;
     }
-    char buffer[MAX_SIZE];
-    char *n;
-    while ((n = fgets(buffer, MAX_SIZE, fp)) != NULL) {
+
+    while ((n = fgets(buffer, MAX_SIZE, fp)) != NULL) 
         fprintf(stdout, buffer);
-    }
+        
     return 0;
 }
 
 int main(int argc, char *argv[])
 {
+    // If there is no argument, assume shell is redirecting it from stdin
     if (argc < 2) mycat(stdin, NULL);
     else {
         int i;
@@ -32,5 +35,6 @@ int main(int argc, char *argv[])
             mycat(fp, argv[1]);
         }
     }
+
     return 0;
 }
