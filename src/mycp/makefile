@@ -1,8 +1,12 @@
-all: mycp
+all: build
 	@./mycp foo bar
+	@rm -f mycp
 
-mycp: mycp.c
+build: mycp.c
 	@gcc mycp.c -o mycp
+
+clean:
+	@rm -rf mycp bar
 
 show: foo bar
 	@echo FOO DIRECTORY:
@@ -10,6 +14,3 @@ show: foo bar
 	@echo
 	@echo BAR DIRECTORY:
 	@ls -laR bar
-
-clean:
-	@rm -rf mycp bar
