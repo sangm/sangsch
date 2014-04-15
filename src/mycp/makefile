@@ -1,12 +1,8 @@
-tar=foo
-dest=bar
-
 all: mycp.c
-	@-gcc mycp.c -o mycp && ./mycp $(tar) $(dest)
-	@rm -f mycp
+	@gcc mycp.c -o mycp
 
 run: mycp
-	@./mycp $(tar) $(dest)
+	@./mycp foo bar
 
 clean:
 	@rm -f mycp
