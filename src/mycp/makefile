@@ -5,4 +5,4 @@ run: mycp
 	@./mycp foo bar
 
 clean:
-	@rm -f mycp
+	@rm -rf mycp bar

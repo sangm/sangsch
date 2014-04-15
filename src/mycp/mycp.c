@@ -20,11 +20,6 @@
 #include <string.h>
 #include <dirent.h>
 
-int exclude(const struct dirent *a)
-{
-    return (strcmp(a->d_name, ".") && strcmp(a->d_name, ".."));
-}
-
 int cp(const char *, const char *);
 int foo(const char *, const struct stat *, int, struct FTW *);
 int mycp(char *);
@@ -53,10 +48,13 @@ int foo(const char *path, const struct stat *sb, int flag, struct FTW *ftw)
 	ptr = strstr(path, "/");
 	if(ptr) strcat(new, ptr);
 
+	//printf("%s: %o\n", path, st.st_mode);
+
 	if(S_ISREG(st.st_mode))
 		cp(new, path);
 	else if(S_ISDIR(st.st_mode))
-		mkdir(new, S_IRWXU);
+		//mkdir(new, S_IRWXU);
+		mkdir(new, st.st_mode);
 
 	return 0;
 }
@@ -72,12 +70,18 @@ int cp(const char *to, const char *from)
 	char buf[4096];
 	ssize_t nread;
 	int saved_errno;
+	struct stat st;
+
+	stat(from, &st);
 
 	fd_from = open(from, O_RDONLY);
-	if (fd_from < 0) return -1;
+	if(fd_from < 0) return -1;
 
-	fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, 0666);
-	if (fd_to < 0) goto out_error;
+	//printf("in cp: %s - %o\n", to, st.st_mode);
+	
+	//fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, 0666);
+	fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, st.st_mode);
+	if(fd_to < 0) goto out_error;
 
 	while (nread = read(fd_from, buf, sizeof buf), nread > 0)
 	{
