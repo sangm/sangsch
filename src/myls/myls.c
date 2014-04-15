@@ -32,9 +32,11 @@ char *elimChar(char *src, char target)
     char* index;
     char* returnStr = (char *)malloc(BUFFER_SIZE*sizeof(char));
     index = strchr(src, target);
-    strncpy(returnStr, index+1, strlen(src));
-    return returnStr;
-    
+    if (index != NULL) {
+        strncpy(returnStr, index+1, strlen(src));
+        return returnStr;
+    }
+    else return src;
 }
 
 void 
@@ -63,15 +65,14 @@ printFileLongFormat(char *fileName)
 
     fprintf(stdout, (S_ISDIR(attr.st_mode)) ? "d" : (S_ISLNK(attr.st_mode)) ? "l" : "-");
     fprintf(stdout, (attr.st_mode & S_IRUSR) ? "r" : "-");
-    fprintf(stdout, (attr.st_mode & S_IRUSR) ? "w" : "-");
-    fprintf(stdout, (attr.st_mode & S_IRUSR) ? "x" : "-");
-    fprintf(stdout, (attr.st_mode & S_IRUSR) ? "r" : "-");
-    fprintf(stdout, (attr.st_mode & S_IRUSR) ? "w" : "-");
-    fprintf(stdout, (attr.st_mode & S_IRUSR) ? "x" : "-");
-    fprintf(stdout, (attr.st_mode & S_IRUSR) ? "r" : "-");
-    fprintf(stdout, (attr.st_mode & S_IRUSR) ? "w" : "-");
-    fprintf(stdout, (attr.st_mode & S_IRUSR) ? "x" : "-");
-    fileName = elimChar(fileName, '/');
+    fprintf(stdout, (attr.st_mode & S_IWUSR) ? "w" : "-");
+    fprintf(stdout, (attr.st_mode & S_IXUSR) ? "x" : "-");
+    fprintf(stdout, (attr.st_mode & S_IRGRP) ? "r" : "-");
+    fprintf(stdout, (attr.st_mode & S_IWGRP) ? "w" : "-");
+    fprintf(stdout, (attr.st_mode & S_IXGRP) ? "x" : "-");
+    fprintf(stdout, (attr.st_mode & S_IROTH) ? "r" : "-");
+    fprintf(stdout, (attr.st_mode & S_IWOTH) ? "w" : "-");
+    fprintf(stdout, (attr.st_mode & S_IXOTH) ? "x" : "-");
 
     fprintf(stdout, " %-2d %-8s %-8s %-4d %-12s %s", (int)attr.st_nlink, uid->pw_name, 
         gid->gr_name, (int)attr.st_size, buffer, fileName);
@@ -104,14 +105,13 @@ myls(char *fileName)
     SHOW_LONG_FORMAT ? (printFile = printFileLongFormat) : (printFile = printFileNormal);
     if (n == 0)
         printFile(fileName);
-    else
-        for (i = 0; i < n; ++i) {
-            bzero(buffer, BUFFER_SIZE);
-            strcpy(buffer, fileName);
-            strcat(buffer, "/");
-            strcat(buffer, dirList[i]->d_name);
-            printFile(buffer);
-        }
+    else {
+        chdir(fileName);
+        for (i = 0; i < n; ++i)
+            printFile(dirList[i]->d_name);
+        chdir("..");
+    }
+
     if (printFile == printFileNormal) fprintf(stdout, "\n");
     return 0;
 }
