@@ -20,9 +20,8 @@
 #include <string.h>
 #include <dirent.h>
 
-int cp(const char *, const char *);
-int foo(const char *, const struct stat *, int, struct FTW *);
-int mycp(char *);
+int reg_file_cp(const char *, const char *);
+int my_cp(const char *, const struct stat *, int, struct FTW *);
 
 char *dest;
 
@@ -31,27 +30,27 @@ int main(int argc, char *argv[])
 	if(argc != 3) return 1;
 
 	dest = argv[2];
-	mycp(argv[1]);
+	nftw(argv[1], my_cp, 64, FTW_PHYS);
 
 	return 0;
 }
 
-int foo(const char *path, const struct stat *sb, int flag, struct FTW *ftw)
+int my_cp(const char *path, const struct stat *sb, int flag, struct FTW *ftw)
 {
 	struct stat st;
 	char new[512] = "";
-	char *ptr;
+	char *sub;
 
 	strcat(new, dest);
 	stat(path, &st);
 
-	ptr = strstr(path, "/");
-	if(ptr) strcat(new, ptr);
+	sub = strstr(path, "/");
+	if(sub) strcat(new, sub);
 
-	//printf("%s: %o\n", path, st.st_mode);
+	//printf("in my_cp: %s - %o\n", path, st.st_mode);
 
 	if(S_ISREG(st.st_mode))
-		cp(new, path);
+		reg_file_cp(new, path);
 	else if(S_ISDIR(st.st_mode))
 		//mkdir(new, S_IRWXU);
 		mkdir(new, st.st_mode);
@@ -59,12 +58,7 @@ int foo(const char *path, const struct stat *sb, int flag, struct FTW *ftw)
 	return 0;
 }
 
-int mycp(char *path)
-{
-	return nftw(path, foo, 64, FTW_PHYS);
-}
-
-int cp(const char *to, const char *from)
+int reg_file_cp(const char *to, const char *from)
 {
 	int fd_to, fd_from;
 	char buf[4096];
@@ -77,7 +71,7 @@ int cp(const char *to, const char *from)
 	fd_from = open(from, O_RDONLY);
 	if(fd_from < 0) return -1;
 
-	//printf("in cp: %s - %o\n", to, st.st_mode);
+	//printf("in reg_file_cp: %s - %o\n", to, st.st_mode);
 	
 	//fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, 0666);
 	fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, st.st_mode);
