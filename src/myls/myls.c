@@ -60,12 +60,11 @@ printFileLongFormat(char *fileName)
     fprintf(stdout, " %-2d %-8s %-8s %-4d %-12s %s", (int)attr.st_nlink, uid->pw_name, 
         gid->gr_name, (int)attr.st_size, buffer, fileName);
     if (S_ISLNK(attr.st_mode)) {
-        readlink(fileName, link, BUFFER_SIZE-1);
+        readlink(fileName, link, BUFFER_SIZE);
         link[BUFFER_SIZE-1] = '\0';
         fprintf(stdout, "-> %s", link);
     }
     fprintf(stdout, "\n");
-
 }
 
 int 
@@ -89,9 +88,9 @@ myls(char *fileName)
     if (n == 0)
         printFile(fileName);
     else
-        for (i = 0; i < n; ++i)
+        for (i = 0; i < n; ++i) 
             printFile(dirList[i]->d_name);
-
+    if (printFile == printFileNormal) fprintf(stdout, "\n");
     return 0;
 }
 
@@ -99,8 +98,8 @@ int
 main(int argc, char *argv[])
 {
     char *fileName;
+    int i, ch;
 
-    int ch;
     while ((ch = getopt(argc, argv, "al")) != -1) {
         switch(ch) {
             case 'a':
@@ -114,17 +113,15 @@ main(int argc, char *argv[])
         }
     }
 
-    int i;
 
-    if (argc == 1) printf("hmm");
 
-    for (i = argc-1; i > 0; --i) {
+    if (argc <= 1 || argv[argc-1][0] == '-')
+        myls(".");
+
+    for (i = argc-1; i > 0; --i)
         if (argv[i][0] != '-')
             myls(argv[i]);
 
-    }
-
-    printf("\n");
     return 0;
 }
 
