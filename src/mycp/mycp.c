@@ -1,7 +1,7 @@
 // to do:
 //  support multiple targets
 //   pass argc and argv to function instead of the laughable thing i'm doing now
-//  un-plagiarize cp especially considering i already wrote it for myself
+//  un-plagiarize cp especially considering i already wrote it myself
 //  give non-shitty names to things
 //  become a gangster and sell drugs
 
