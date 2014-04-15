@@ -13,6 +13,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 static int SHOW_HIDDEN_FILES = 0;
 static int SHOW_LONG_FORMAT = 0;
@@ -26,9 +27,20 @@ exclude(const struct dirent *a)
         && a->d_name[0] != '.');
 }
 
+char *elimChar(char *src, char target)
+{
+    char* index;
+    char* returnStr = (char *)malloc(BUFFER_SIZE*sizeof(char));
+    index = strchr(src, target);
+    strncpy(returnStr, index+1, strlen(src));
+    return returnStr;
+    
+}
+
 void 
 printFileNormal(char *fileName)
 {
+    fileName = elimChar(fileName, '/');
     fprintf(stdout, "%s\t", fileName);
 }
 
@@ -41,7 +53,10 @@ printFileLongFormat(char *fileName)
     char buffer[BUFFER_SIZE];
     char link[BUFFER_SIZE];
 
-    lstat(fileName, &attr);
+    if (lstat(fileName, &attr) < 0) {
+        fprintf(stdout, "myls: %s: %s\n", fileName, strerror(errno));
+        return;
+    }
     uid = getpwuid(attr.st_uid);
     gid = getgrgid(attr.st_gid);
     strftime(buffer, sizeof(buffer), "%b %d %R", localtime(&attr.st_atime));
@@ -56,6 +71,7 @@ printFileLongFormat(char *fileName)
     fprintf(stdout, (attr.st_mode & S_IRUSR) ? "r" : "-");
     fprintf(stdout, (attr.st_mode & S_IRUSR) ? "w" : "-");
     fprintf(stdout, (attr.st_mode & S_IRUSR) ? "x" : "-");
+    fileName = elimChar(fileName, '/');
 
     fprintf(stdout, " %-2d %-8s %-8s %-4d %-12s %s", (int)attr.st_nlink, uid->pw_name, 
         gid->gr_name, (int)attr.st_size, buffer, fileName);
@@ -72,6 +88,7 @@ myls(char *fileName)
 {
     struct stat attr;
     struct dirent **dirList;
+    char buffer[BUFFER_SIZE];
     int i, n = 0;
 
     if (stat(fileName, &attr) < 0) {
@@ -88,8 +105,13 @@ myls(char *fileName)
     if (n == 0)
         printFile(fileName);
     else
-        for (i = 0; i < n; ++i) 
-            printFile(dirList[i]->d_name);
+        for (i = 0; i < n; ++i) {
+            bzero(buffer, BUFFER_SIZE);
+            strcpy(buffer, fileName);
+            strcat(buffer, "/");
+            strcat(buffer, dirList[i]->d_name);
+            printFile(buffer);
+        }
     if (printFile == printFileNormal) fprintf(stdout, "\n");
     return 0;
 }
