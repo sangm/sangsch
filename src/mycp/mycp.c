@@ -1,11 +1,5 @@
-// to do:
-//  support multiple targets
-//   pass argc and argv to function instead of the laughable thing i'm doing now
-//  un-plagiarize cp especially considering i already wrote it myself
-//  give non-shitty names to things
-//  become a gangster and sell drugs
-
 #define _XOPEN_SOURCE 500
+#define _GNU_SOURCE
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -17,20 +11,44 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <string.h>
-#include <dirent.h>
 
 int reg_file_cp(const char *, const char *);
 int my_cp(const char *, const struct stat *, int, struct FTW *);
 
-char *dest;
+int found_r = 0;
+char *dest = 0;
 
 int main(int argc, char *argv[])
 {
-	if(argc != 3) return 1;
+	if(argc < 3) return 1;
 
-	dest = argv[2];
-	nftw(argv[1], my_cp, 64, FTW_PHYS);
+	struct stat st;
+	char foo = 0;
+	int opts = -1;
+
+	while(foo != -1) {
+		foo = getopt(argc, argv, "R");
+		++opts;
+
+		if(foo == 'R') found_r = 1;
+	}
+
+	if(argc != opts + 3) {
+		fprintf(stderr, "mycp only supports one source and one destination\n");
+		return 1;
+	}
+
+	stat(argv[opts + 1], &st);
+	
+	if(S_ISDIR(st.st_mode)) {
+		if(found_r == 0) {
+			printf("mycp: omitting directory '%s'\n", argv[opts + 1]);
+			return 0;
+		}
+	}
+
+	dest = argv[opts + 2];
+	nftw(argv[opts + 1], my_cp, 64, FTW_PHYS);
 
 	return 0;
 }
