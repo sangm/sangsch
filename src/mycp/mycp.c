@@ -1,11 +1,5 @@
-// to do:
-//  support multiple targets
-//   pass argc and argv to function instead of the laughable thing i'm doing now
-//  un-plagiarize cp especially considering i already wrote it for myself
-//  give non-shitty names to things
-//  become a gangster and sell drugs
-
 #define _XOPEN_SOURCE 500
+#define _GNU_SOURCE
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -17,67 +11,89 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <string.h>
-#include <dirent.h>
 
-int exclude(const struct dirent *a)
-{
-    return (strcmp(a->d_name, ".") && strcmp(a->d_name, ".."));
-}
+int reg_file_cp(const char *, const char *);
+int my_cp(const char *, const struct stat *, int, struct FTW *);
 
-int cp(const char *, const char *);
-int foo(const char *, const struct stat *, int, struct FTW *);
-int mycp(char *);
-
-char *dest;
+int found_r = 0;
+char *dest = 0;
 
 int main(int argc, char *argv[])
 {
-	if(argc != 3) return 1;
+	if(argc < 3) return 1;
 
-	dest = argv[2];
-	mycp(argv[1]);
+	struct stat st;
+	char foo = 0;
+	int opts = -1;
+
+	while(foo != -1) {
+		foo = getopt(argc, argv, "R");
+		++opts;
+
+		if(foo == 'R') found_r = 1;
+	}
+
+	if(argc != opts + 3) {
+		fprintf(stderr, "mycp only supports one source and one destination\n");
+		return 1;
+	}
+
+	stat(argv[opts + 1], &st);
+	
+	if(S_ISDIR(st.st_mode)) {
+		if(found_r == 0) {
+			printf("mycp: omitting directory '%s'\n", argv[opts + 1]);
+			return 0;
+		}
+	}
+
+	dest = argv[opts + 2];
+	nftw(argv[opts + 1], my_cp, 64, FTW_PHYS);
 
 	return 0;
 }
 
-int foo(const char *path, const struct stat *sb, int flag, struct FTW *ftw)
+int my_cp(const char *path, const struct stat *sb, int flag, struct FTW *ftw)
 {
 	struct stat st;
 	char new[512] = "";
-	char *ptr;
+	char *sub;
 
 	strcat(new, dest);
 	stat(path, &st);
 
-	ptr = strstr(path, "/");
-	if(ptr) strcat(new, ptr);
+	sub = strstr(path, "/");
+	if(sub) strcat(new, sub);
+
+	//printf("in my_cp: %s - %o\n", path, st.st_mode);
 
 	if(S_ISREG(st.st_mode))
-		cp(new, path);
+		reg_file_cp(new, path);
 	else if(S_ISDIR(st.st_mode))
-		mkdir(new, S_IRWXU);
+		//mkdir(new, S_IRWXU);
+		mkdir(new, st.st_mode);
 
 	return 0;
 }
 
-int mycp(char *path)
-{
-	return nftw(path, foo, 64, FTW_PHYS);
-}
-
-int cp(const char *to, const char *from)
+int reg_file_cp(const char *to, const char *from)
 {
 	int fd_to, fd_from;
 	char buf[4096];
 	ssize_t nread;
 	int saved_errno;
+	struct stat st;
+
+	stat(from, &st);
 
 	fd_from = open(from, O_RDONLY);
-	if (fd_from < 0) return -1;
+	if(fd_from < 0) return -1;
 
-	fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, 0666);
-	if (fd_to < 0) goto out_error;
+	//printf("in reg_file_cp: %s - %o\n", to, st.st_mode);
+	
+	//fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, 0666);
+	fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, st.st_mode);
+	if(fd_to < 0) goto out_error;
 
 	while (nread = read(fd_from, buf, sizeof buf), nread > 0)
 	{
