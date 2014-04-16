@@ -21,7 +21,6 @@ static const char *people[] = {
 };
 
 char commandBuffer[MAX_SIZE];
-static char userInput = '\0';
 static unsigned charCount = 0;
 
 struct passwd *user;
