@@ -8,7 +8,8 @@
 
 #define MAX_SIZE 2048
 
-int mycat(FILE *fp, char *fileName)
+int 
+mycat(FILE *fp, char *fileName)
 {
     char buffer[MAX_SIZE];
     char *n;
@@ -24,7 +25,8 @@ int mycat(FILE *fp, char *fileName)
     return 0;
 }
 
-int main(int argc, char *argv[])
+int 
+main(int argc, char *argv[])
 {
     // If there is no argument, assume shell is redirecting it from stdin
     if (argc < 2) mycat(stdin, NULL);
