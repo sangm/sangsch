@@ -16,6 +16,8 @@ int shellArgc = 0;
 struct redirectStruct {
     char *file;
     short oFlags;
+    short input;
+    short output;
 } redirect;
 
 void getUserInput();
@@ -39,8 +41,7 @@ int main(int argc, char *argv[])
     while(1) {
         printShellPrompt();
         userInput = getchar();
-        int status;
-        int fd;
+        int status, fdin = 0, fdout = 1;
         switch(userInput) {
             case '\n':
                 break;
@@ -54,37 +55,38 @@ int main(int argc, char *argv[])
                 #endif
 
                 // Check for >>, <, >, |
-                // Order here matters
-                
-
-                
 
                 while ((checkForString(shellArgv, shellArgc, ">>") == 0) 
-                  || checkForString(shellArgv, shellArgc, ">") == 0) {
-                    fd = open(redirect.file, redirect.oFlags, 0600);
-                }
-
-                //checkForString(shellArgv, shellArgc, "<");
-                //checkForString(shellArgv, shellArgc, ">>");
-
+                  || checkForString(shellArgv, shellArgc, ">") == 0)
+                    fdout = open(redirect.file, redirect.oFlags, 0600);
+                while ((checkForString(shellArgv, shellArgc, "<") == 0))
+                    fdin = open(redirect.file, redirect.oFlags);
                 //checkForString(shellArgv, shellArgc, "|");
-
                 pid_t pid;
-
-                if ((pid = fork()) < 0)  {
-                    perror("Fork failed: ");
-                    exit(1);
-                }
-                else if (pid > 0) {
-                    // parent block. 
-                    wait(&status);
-                }
-                else if (pid == 0) {
-                    if (redirect.file) {
-                        dup2(fd, 1);
-                        close(fd);
-                    }
-                    execlp("/bin/ls", ".", NULL);
+                pid = fork();
+                switch(pid) {
+                    case -1:
+                        perror("Fork failed due to: ");
+                        exit(1);
+                        break;
+                    case 0:
+                        if (redirect.file) {
+                            if (redirect.output == 1) {
+                                dup2(fdout, 1);
+                                close(fdout);
+                            }
+                            if (redirect.input == 1) {
+                                dup2(fdin, 0);
+                                close(fdin);
+                            }
+                        }
+                        execvp(shellArgv[0], shellArgv);
+                        break;
+                    default:
+                        wait(&status);
+                        if (redirect.output == 1) close(fdout);
+                        if (redirect.input == 1) close(fdin);
+                        break;
                 }
                 break;
         }
@@ -107,19 +109,17 @@ int checkForString(char *args[], int argCount, char *target)
             }
             else {
                 // Next argument is valid
-                if (strcmp(target, ">>") == 0)
+                if (strcmp(target, ">>") == 0) {
                     redirect.oFlags = O_WRONLY | O_CREAT | O_APPEND;
-                else if (strcmp(target, ">") == 0)
+                    redirect.output = 1;
+                }
+                else if (strcmp(target, ">") == 0) {
                     redirect.oFlags = O_WRONLY | O_CREAT | O_TRUNC;
+                    redirect.output = 1;
+                }
                 else if (strcmp(target,"<") == 0) {
                     redirect.oFlags = O_RDONLY;
-                    strcpy(redirect.file, args[i+1]);
-                    int j;
-                    for (j = i; j < shellArgc-1; ++j) {
-                        args[j] = args[j+1];
-                        args[j] = '\0';
-                    }
-                    shellArgc -= 2;
+                    redirect.input = 1;
                 }
                 // Shift all the args down 1
                 // argv = [cat, foo, >>, foo1]
@@ -163,9 +163,8 @@ void destroyBuffer()
 {
     int i;
     while(shellArgv[i]) shellArgv[i] = NULL;
-    bzero(shellArgv, 5);
     if (redirect.file) redirect.file = "\0";
-    redirect.oFlags = 0;
+    redirect.input = redirect.output = redirect.oFlags = 0;
     shellArgc = bufferCount = 0;
 }
 

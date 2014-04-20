@@ -135,10 +135,11 @@ main(int argc, char *argv[])
         }
     }
 
-
-
-    if (argc <= 1 || argv[argc-1][0] == '-')
+    if (optind == argc)
         myls(".");
+
+//   if (argc <= 1 || argv[argc-1][0] == '-')
+//        myls(".");
 
     for (i = argc-1; i > 0; --i)
         if (argv[i][0] != '-')
