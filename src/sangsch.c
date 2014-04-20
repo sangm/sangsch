@@ -5,6 +5,7 @@
 #include <string.h>
 #include <fcntl.h>
 
+
 #define BUFFER_MAX 2048
 char userInput = '\0';
 char buffer[BUFFER_MAX];
@@ -12,14 +13,10 @@ char bufferCount = 0;
 char *shellArgv[10];
 int shellArgc = 0;
 
-
-char *redirectAppend = NULL;
-
 struct redirectStruct {
     char *file;
     short oFlags;
 } redirect;
-
 
 void getUserInput();
 void populateGetArgs();
@@ -29,49 +26,65 @@ int checkForString(char *args[], int argCount, char *target);
 void printShell()
 {
     int i;
+    printf("==============\n");
+    printf("argc: %d\n", shellArgc);
     for (i = 0; shellArgv[i] != NULL; ++i)
         printf("%s ", shellArgv[i]);
-    printf("\n");
+    printf("\n============\n\n");
 }
 
-int main(int argc, char *argv[], char *envp[])
+int main(int argc, char *argv[])
 {
     printWelcomeScreen();
     while(1) {
         printShellPrompt();
         userInput = getchar();
         int status;
+        int fd;
         switch(userInput) {
             case '\n':
                 break;
             default:
+                getUserInput();
                 
                 // Returns argv and argc as shellArgv, shellArgc
-                getUserInput();
+                #ifdef DEBUG
+                shellArgv[0] = "ls";
+                shellArgc = 1;
+                #endif
 
                 // Check for >>, <, >, |
-                if (checkForString(shellArgv, shellArgc, ">>") != 0)
-                    break;
                 // Order here matters
                 
-                checkForString(shellArgv, shellArgc, "<");
-                checkForString(shellArgv, shellArgc, ">>");
-                checkForString(shellArgv, shellArgc, ">");
-                checkForString(shellArgv, shellArgc, "|");
-                printShell();
 
+                
+
+                while ((checkForString(shellArgv, shellArgc, ">>") == 0) 
+                  || checkForString(shellArgv, shellArgc, ">") == 0) {
+                    fd = open(redirect.file, redirect.oFlags, 0600);
+                }
+
+                //checkForString(shellArgv, shellArgc, "<");
+                //checkForString(shellArgv, shellArgc, ">>");
+
+                //checkForString(shellArgv, shellArgc, "|");
 
                 pid_t pid;
-                if ((pid = fork()) < 0) perror("Fork failed: ");
+
+                if ((pid = fork()) < 0)  {
+                    perror("Fork failed: ");
+                    exit(1);
+                }
                 else if (pid > 0) {
                     // parent block. 
                     wait(&status);
                 }
                 else if (pid == 0) {
-                    int fd = open(redirectAppend, O_WRONLY | O_CREAT | O_APPEND, 0600);
-                    dup2(fd, 1);
-                    close(fd);
-                    execvp(shellArgv[0], shellArgv);
+                    if (redirect.file) {
+                        dup2(fd, 1);
+                        close(fd);
+                    }
+                    execlp("/bin/ls", ".", NULL);
                 }
                 break;
         }
@@ -86,7 +99,6 @@ int checkForString(char *args[], int argCount, char *target)
     for (i = 0; i < argCount; ++i) {
         if ((result = strcmp(args[i], target)) == 0) {
             if (args[i+1] == NULL) { 
-                fprintf(stdout, "Unexpected newline\n");
                 return -1;
             }
             else if (strcmp(args[i+1], target) == 0) {
@@ -95,25 +107,11 @@ int checkForString(char *args[], int argCount, char *target)
             }
             else {
                 // Next argument is valid
-                if (strcmp(target, ">>") == 0) {
-                    int strlength = strlen(args[i+1])+1;
-                    redirectAppend = (char *)malloc(strlength);
-                    strcpy(redirectAppend, args[i+1]);
-                    // Shift all the args down 1
-                    // argv = [cat, foo, >>, foo1]
-                    // argv = [cat, foo] -> stdout points to foo
-                    int j;
-                    // Check for 1 off error when I get some sleep :)
-                    for (j = i; j < shellArgc-1; ++j) {
-                        args[j] = args[j+1];
-                        args[j] = '\0';
-                    }
-                    shellArgc -= 2;
-                }
+                if (strcmp(target, ">>") == 0)
+                    redirect.oFlags = O_WRONLY | O_CREAT | O_APPEND;
+                else if (strcmp(target, ">") == 0)
+                    redirect.oFlags = O_WRONLY | O_CREAT | O_TRUNC;
                 else if (strcmp(target,"<") == 0) {
-                    printf("stdin\n");
-                    int strlength = strlen(args[i+1])+1;
-                    redirect.file = (char *)malloc(strlength);
                     redirect.oFlags = O_RDONLY;
                     strcpy(redirect.file, args[i+1]);
                     int j;
@@ -123,15 +121,22 @@ int checkForString(char *args[], int argCount, char *target)
                     }
                     shellArgc -= 2;
                 }
-                else if (strcmp(target, ">") == 0) {
-                    printf("stdout redirected, truncate");
-                }
-
+                // Shift all the args down 1
+                // argv = [cat, foo, >>, foo1]
+                // argv = [cat, foo] -> stdout points to foo
+                // Check for 1 off error when I get some sleep :)
+                int strlength = strlen(args[i+1])+1;
+                redirect.file = (char *)malloc(strlength);
+                strcpy(redirect.file, args[i+1]);
+                int j;
+                for (j = i; j < shellArgc-1; ++j) 
+                    args[j] = args[j+2];
+                shellArgc -= 2;
+                return 0;
             }
         }
     }
-
-    return 0;
+    return -1;
 }
 
 void getUserInput()
@@ -156,6 +161,8 @@ void populateGetArgs()
 }
 void destroyBuffer()
 {
+    int i;
+    while(shellArgv[i]) shellArgv[i] = NULL;
     bzero(shellArgv, 5);
     if (redirect.file) redirect.file = "\0";
     redirect.oFlags = 0;
