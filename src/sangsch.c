@@ -20,18 +20,25 @@ struct redirectStruct {
     short output;
 } redirect;
 
+struct pipeStruct {
+    int pipe[2];
+    char *inPipe;
+    char *outPipe;
+    char *inPipeArgs[5];
+    char *outPipeArgs[5];
+} pipeS;
+
 void getUserInput();
 void populateGetArgs();
 void destroyBuffer();
 int checkForString(char *args[], int argCount, char *target);
 
-void printShell()
+void printShell(char *arg[])
 {
     int i;
     printf("==============\n");
-    printf("argc: %d\n", shellArgc);
-    for (i = 0; shellArgv[i] != NULL; ++i)
-        printf("%s ", shellArgv[i]);
+    for (i = 0; arg[i] != NULL; ++i)
+        printf("%s ", arg[i]);
     printf("\n============\n\n");
 }
 
@@ -40,6 +47,7 @@ int main(int argc, char *argv[])
     printWelcomeScreen();
     while(1) {
         printShellPrompt();
+
         userInput = getchar();
         int status, fdin = 0, fdout = 1;
         switch(userInput) {
@@ -51,7 +59,9 @@ int main(int argc, char *argv[])
                 // Returns argv and argc as shellArgv, shellArgc
                 #ifdef DEBUG
                 shellArgv[0] = "ls";
-                shellArgc = 1;
+                shellArgv[1] = "|";
+                shellArgv[2] = "cat";
+                shellArgc = 3;
                 #endif
 
                 // Check for >>, <, >, |
@@ -61,7 +71,7 @@ int main(int argc, char *argv[])
                     fdout = open(redirect.file, redirect.oFlags, 0600);
                 while ((checkForString(shellArgv, shellArgc, "<") == 0))
                     fdin = open(redirect.file, redirect.oFlags);
-                //checkForString(shellArgv, shellArgc, "|");
+                
                 pid_t pid;
                 pid = fork();
                 switch(pid) {
@@ -88,6 +98,9 @@ int main(int argc, char *argv[])
                         if (redirect.input == 1) close(fdin);
                         break;
                 }
+
+                printf("after command\n");
+
                 break;
         }
     }
@@ -121,13 +134,29 @@ int checkForString(char *args[], int argCount, char *target)
                     redirect.oFlags = O_RDONLY;
                     redirect.input = 1;
                 }
+                else if (strcmp(target, "|") == 0) {
+                    int strlength;
+                    int j;
+                    strlength = strlen(args[0]) + 1;
+                    pipeS.inPipe= (char *)malloc(strlength);
+                    strcpy(pipeS.inPipe, args[0]);
+                    for (j = 0; j < i; ++j)
+                        pipeS.inPipeArgs[j] = args[j];
+
+
+                    //strlength = strlen(args[i+1]) + 1;
+                    //redirect.OutCommand = (char *)malloc(strlength);
+                    //strcpy(redirect.OutCommand, args[i+1]);
+                }
                 // Shift all the args down 1
                 // argv = [cat, foo, >>, foo1]
                 // argv = [cat, foo] -> stdout points to foo
                 // Check for 1 off error when I get some sleep :)
-                int strlength = strlen(args[i+1])+1;
-                redirect.file = (char *)malloc(strlength);
-                strcpy(redirect.file, args[i+1]);
+                if (redirect.output == 1 || redirect.input == 1) {
+                    int strlength = strlen(args[i+1])+1;
+                    redirect.file = (char *)malloc(strlength);
+                    strcpy(redirect.file, args[i+1]);
+                }
                 int j;
                 for (j = i; j < shellArgc-1; ++j) 
                     args[j] = args[j+2];
@@ -165,6 +194,7 @@ void destroyBuffer()
     while(shellArgv[i]) shellArgv[i] = NULL;
     if (redirect.file) redirect.file = "\0";
     redirect.input = redirect.output = redirect.oFlags = 0;
+    pipeS.pipe[0] = pipeS.pipe[1] = -1;
     shellArgc = bufferCount = 0;
 }
 
