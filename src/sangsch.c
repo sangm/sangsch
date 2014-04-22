@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
         printShellPrompt();
 
         userInput = getchar();
-        int status, fdin = 0, fdout = 1;
+        int status, fdin = 0, fdout = 1, pipeStatus = 0;
         switch(userInput) {
             case '\n':
                 break;
@@ -71,10 +71,89 @@ int main(int argc, char *argv[])
                     fdout = open(redirect.file, redirect.oFlags, 0600);
                 while ((checkForString(shellArgv, shellArgc, "<") == 0))
                     fdin = open(redirect.file, redirect.oFlags);
+
+                if (checkForString(shellArgv, shellArgc, "|") == 0) {
+                    if (pipe(pipeS.pipe) < 0) perror("Pipe failed: ");
+                    pipeStatus = 1;
+                }
+
+                    
+                // At this point, inPipe and outPipe is good
+                // At this point, inPipeArgs is good
+                // At this point, outPipeArgs is good
+
+                /*pid_t pid1, pid2;
+                pid1 = fork();
+                if (pid1 == fork()) {
+                    dup2(pipeS.pipe[1], 1);
+                    close(pipeS.pipe[1]);
+                    close(pipeS.pipe[0]);
+                    execvp(pipeS.inPipe, pipeS.inPipeArgs);
+                }
+                pid2 = fork();
+                if (pid2 == 0) {
+                    dup2(pipeS.pipe[0], 0);
+                    close(pipeS.pipe[1]);
+                    close(pipeS.pipe[0]);
+                    execvp(pipeS.outPipe, pipeS.outPipeArgs);
+                }
+                close(pipeS.pipe[0]);
+                close(pipeS.pipe[1]);
+
+                break;
+               */ 
                 
-                pid_t pid;
+                pid_t pid, pid2;
                 pid = fork();
-                switch(pid) {
+
+
+                if (pid < 0) {
+                    perror("Fork failed due to: ");
+                    exit(1);
+                } 
+                else if (pid == 0) {
+                    if (redirect.file) 
+                        if (redirect.output == 1) {
+                            dup2(fdout, 1);
+                            close(fdout);
+                        }
+                        if (redirect.input == 1) {
+                            dup2(fdin, 0);
+                            close(fdin);
+                        }
+                    if (pipeStatus == 1) {
+                        dup2(pipeS.pipe[1], 1);
+                        close(pipeS.pipe[1]);
+                        close(pipeS.pipe[0]);
+                        execvp(pipeS.inPipe, pipeS.inPipeArgs);
+                        // if execvp returns negative
+                    }
+                    execvp(shellArgv[0], shellArgv);
+                }
+                if (pipeStatus == 1) {
+                    pid2 = fork();
+                    if (pid2 == 0) {
+                        dup2(pipeS.pipe[0], 0);
+                        close(pipeS.pipe[0]);
+                        close(pipeS.pipe[1]);
+                        execvp(pipeS.outPipe, pipeS.outPipeArgs);
+                    }
+                    close(pipeS.pipe[0]);
+                    close(pipeS.pipe[1]);
+                }
+                if (pipeStatus == 1)
+                    while(pid + pid2 > 0) {
+                        int p = wait(NULL);
+                        if (p == pid) pid = 0;
+                        if (p == pid2) pid2 = 0;
+                    }
+                else
+                    wait(&status);
+                if (redirect.output == 1) close(fdout);
+                if (redirect.input == 1) close(fdin);
+                break;
+
+/*                switch(pid) {
                     case -1:
                         perror("Fork failed due to: ");
                         exit(1);
@@ -90,6 +169,12 @@ int main(int argc, char *argv[])
                                 close(fdin);
                             }
                         }
+                        if (pipeStatus == 1) {
+                            dup2(pipeS.pipe[1], 1);
+                            close(pipeS.pipe[1]);
+                            close(pipeS.pipe[0]);
+                            execvp(pipeS.inPipe, pipeS.inPipeArgs);
+                        }
                         execvp(shellArgv[0], shellArgv);
                         break;
                     default:
@@ -97,11 +182,7 @@ int main(int argc, char *argv[])
                         if (redirect.output == 1) close(fdout);
                         if (redirect.input == 1) close(fdin);
                         break;
-                }
-
-                printf("after command\n");
-
-                break;
+                }*/
         }
     }
 }
@@ -136,13 +217,20 @@ int checkForString(char *args[], int argCount, char *target)
                 }
                 else if (strcmp(target, "|") == 0) {
                     int strlength;
-                    int j;
+                    int j, k = 0;
                     strlength = strlen(args[0]) + 1;
-                    pipeS.inPipe= (char *)malloc(strlength);
+                    pipeS.inPipe = (char *)malloc(strlength);
                     strcpy(pipeS.inPipe, args[0]);
                     for (j = 0; j < i; ++j)
                         pipeS.inPipeArgs[j] = args[j];
+                    pipeS.inPipeArgs[j] = NULL;
 
+                    strlength = strlen(args[i+1]) + 1;
+                    pipeS.outPipe = (char *)malloc(strlength);
+                    strcpy(pipeS.outPipe, args[i+1]);
+                    for (j = i + 1; j < argCount; ++j)
+                        pipeS.outPipeArgs[k++] = args[j];
+                    pipeS.outPipeArgs[k] = NULL;
 
                     //strlength = strlen(args[i+1]) + 1;
                     //redirect.OutCommand = (char *)malloc(strlength);
@@ -157,6 +245,9 @@ int checkForString(char *args[], int argCount, char *target)
                     redirect.file = (char *)malloc(strlength);
                     strcpy(redirect.file, args[i+1]);
                 }
+                // This won't work for second half. Have to implement 
+                // If the second half is longer than 1, eliminate the rest
+                // For piping :)
                 int j;
                 for (j = i; j < shellArgc-1; ++j) 
                     args[j] = args[j+2];
@@ -190,8 +281,13 @@ void populateGetArgs()
 }
 void destroyBuffer()
 {
-    int i;
-    while(shellArgv[i]) shellArgv[i] = NULL;
+    int i = 0;
+    while(shellArgv[i]) shellArgv[i++] = NULL;
+    i = 0;
+    while(pipeS.inPipeArgs[i] || pipeS.outPipeArgs[i]) {
+        pipeS.inPipeArgs[i] = pipeS.outPipeArgs[i] = NULL;
+        ++i;
+    }
     if (redirect.file) redirect.file = "\0";
     redirect.input = redirect.output = redirect.oFlags = 0;
     pipeS.pipe[0] = pipeS.pipe[1] = -1;
