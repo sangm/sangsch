@@ -5,7 +5,6 @@
 #include <string.h>
 #include <fcntl.h>
 
-
 #define BUFFER_MAX 2048
 char userInput = '\0';
 char buffer[BUFFER_MAX];
@@ -47,7 +46,6 @@ int main(int argc, char *argv[])
     printWelcomeScreen();
     while(1) {
         printShellPrompt();
-
         userInput = getchar();
         int status, fdin = 0, fdout = 1, pipeStatus = 0;
         switch(userInput) {
@@ -55,7 +53,6 @@ int main(int argc, char *argv[])
                 break;
             default:
                 getUserInput();
-                
                 // Returns argv and argc as shellArgv, shellArgc
                 #ifdef DEBUG
                 shellArgv[0] = "ls";
@@ -65,7 +62,6 @@ int main(int argc, char *argv[])
                 #endif
 
                 // Check for >>, <, >, |
-
                 while ((checkForString(shellArgv, shellArgc, ">>") == 0) 
                   || checkForString(shellArgv, shellArgc, ">") == 0)
                     fdout = open(redirect.file, redirect.oFlags, 0600);
@@ -76,37 +72,8 @@ int main(int argc, char *argv[])
                     if (pipe(pipeS.pipe) < 0) perror("Pipe failed: ");
                     pipeStatus = 1;
                 }
-
-                    
-                // At this point, inPipe and outPipe is good
-                // At this point, inPipeArgs is good
-                // At this point, outPipeArgs is good
-
-                /*pid_t pid1, pid2;
-                pid1 = fork();
-                if (pid1 == fork()) {
-                    dup2(pipeS.pipe[1], 1);
-                    close(pipeS.pipe[1]);
-                    close(pipeS.pipe[0]);
-                    execvp(pipeS.inPipe, pipeS.inPipeArgs);
-                }
-                pid2 = fork();
-                if (pid2 == 0) {
-                    dup2(pipeS.pipe[0], 0);
-                    close(pipeS.pipe[1]);
-                    close(pipeS.pipe[0]);
-                    execvp(pipeS.outPipe, pipeS.outPipeArgs);
-                }
-                close(pipeS.pipe[0]);
-                close(pipeS.pipe[1]);
-
-                break;
-               */ 
-                
                 pid_t pid, pid2;
                 pid = fork();
-
-
                 if (pid < 0) {
                     perror("Fork failed due to: ");
                     exit(1);
@@ -127,8 +94,11 @@ int main(int argc, char *argv[])
                         close(pipeS.pipe[0]);
                         execvp(pipeS.inPipe, pipeS.inPipeArgs);
                         // if execvp returns negative
+                        printf("Not valid command\n");
+                        exit(1);
                     }
                     execvp(shellArgv[0], shellArgv);
+                    printf("Not valid command\n");
                 }
                 if (pipeStatus == 1) {
                     pid2 = fork();
@@ -137,6 +107,8 @@ int main(int argc, char *argv[])
                         close(pipeS.pipe[0]);
                         close(pipeS.pipe[1]);
                         execvp(pipeS.outPipe, pipeS.outPipeArgs);
+                        printf("Not valid command\n");
+                        exit(1);
                     }
                     close(pipeS.pipe[0]);
                     close(pipeS.pipe[1]);
@@ -152,37 +124,6 @@ int main(int argc, char *argv[])
                 if (redirect.output == 1) close(fdout);
                 if (redirect.input == 1) close(fdin);
                 break;
-
-/*                switch(pid) {
-                    case -1:
-                        perror("Fork failed due to: ");
-                        exit(1);
-                        break;
-                    case 0:
-                        if (redirect.file) {
-                            if (redirect.output == 1) {
-                                dup2(fdout, 1);
-                                close(fdout);
-                            }
-                            if (redirect.input == 1) {
-                                dup2(fdin, 0);
-                                close(fdin);
-                            }
-                        }
-                        if (pipeStatus == 1) {
-                            dup2(pipeS.pipe[1], 1);
-                            close(pipeS.pipe[1]);
-                            close(pipeS.pipe[0]);
-                            execvp(pipeS.inPipe, pipeS.inPipeArgs);
-                        }
-                        execvp(shellArgv[0], shellArgv);
-                        break;
-                    default:
-                        wait(&status);
-                        if (redirect.output == 1) close(fdout);
-                        if (redirect.input == 1) close(fdin);
-                        break;
-                }*/
         }
     }
 }
@@ -231,10 +172,6 @@ int checkForString(char *args[], int argCount, char *target)
                     for (j = i + 1; j < argCount; ++j)
                         pipeS.outPipeArgs[k++] = args[j];
                     pipeS.outPipeArgs[k] = NULL;
-
-                    //strlength = strlen(args[i+1]) + 1;
-                    //redirect.OutCommand = (char *)malloc(strlength);
-                    //strcpy(redirect.OutCommand, args[i+1]);
                 }
                 // Shift all the args down 1
                 // argv = [cat, foo, >>, foo1]
@@ -262,13 +199,14 @@ int checkForString(char *args[], int argCount, char *target)
 void getUserInput()
 {
     destroyBuffer();
-   while ((userInput != '\n') && (bufferCount < BUFFER_MAX)) {
+    while ((userInput != '\n') && (bufferCount < BUFFER_MAX)) {
         buffer[bufferCount++] = userInput;
         userInput = getchar();
-   }
-   buffer[bufferCount] = '\0';
-   populateGetArgs();
+    }
+    buffer[bufferCount] = '\0';
+    populateGetArgs();
 }
+
 void populateGetArgs()
 {
     char *argPointer;
@@ -279,6 +217,7 @@ void populateGetArgs()
     }
     shellArgv[shellArgc] = NULL;
 }
+
 void destroyBuffer()
 {
     int i = 0;
