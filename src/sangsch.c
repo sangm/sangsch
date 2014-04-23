@@ -7,6 +7,7 @@ void getTextFromShell();
 void getUserInput();
 void populateGetArgs();
 void destroyBuffer();
+void appendEnv();
 int checkForString(char *args[], int argCount, char *target);
 
 void printShell(char *arg[])
@@ -31,11 +32,6 @@ int main(int argc, char *argv[])
             default:
                 getUserInput();
                 // Returns argv and argc as shellArgv, shellArgc
-
-                char *environment = getenv("PATH");
-                strcat(environment, ";/Users/sang/Desktop/C++/sangsch/src/bin");
-                putenv(environment);
-                environment = getenv("PATH");
 
                 // Check for >>, <, >, |
                 while ((checkForString(shellArgv, shellArgc, ">>") == 0) 
@@ -223,4 +219,11 @@ void printShellPrompt()
 {
     user = getpwuid(geteuid());
     printf(ANSI_COLOR_CYAN "%s $ " ANSI_COLOR_RESET , user->pw_name);
+}
+
+void appendEnv()
+{
+    char localEnv[256]; 
+    localEnv = getenv("PATH");
+
 }
