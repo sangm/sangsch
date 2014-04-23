@@ -1,7 +1,3 @@
-// For ls
-//  if file, get stat of the file and display it the way ls does
-// if directory, scan directory, and do it again
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
@@ -89,7 +85,6 @@ myls(char *fileName)
 {
     struct stat attr;
     struct dirent **dirList;
-    char buffer[BUFFER_SIZE];
     int i, n = 0;
 
     if (stat(fileName, &attr) < 0) {
@@ -119,7 +114,6 @@ myls(char *fileName)
 int 
 main(int argc, char *argv[])
 {
-    char *fileName;
     int i, ch;
 
     while ((ch = getopt(argc, argv, "al")) != -1) {
@@ -137,9 +131,6 @@ main(int argc, char *argv[])
 
     if (optind == argc)
         myls(".");
-
-//   if (argc <= 1 || argv[argc-1][0] == '-')
-//        myls(".");
 
     for (i = argc-1; i > 0; --i)
         if (argv[i][0] != '-')
