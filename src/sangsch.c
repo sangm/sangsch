@@ -1,31 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
-#include <string.h>
-#include <fcntl.h>
+#include "sangsch.h"
 
-#define BUFFER_MAX 2048
-char userInput = '\0';
-char buffer[BUFFER_MAX];
-char bufferCount = 0;
-char *shellArgv[10];
-int shellArgc = 0;
-
-struct redirectStruct {
-    char *file;
-    short oFlags;
-    short input;
-    short output;
-} redirect;
-
-struct pipeStruct {
-    int pipe[2];
-    char *inPipe;
-    char *outPipe;
-    char *inPipeArgs[5];
-    char *outPipeArgs[5];
-} pipeS;
+void printWelcomeScreen();
+void printShellPrompt();
+void getTextFromShell();
 
 void getUserInput();
 void populateGetArgs();
@@ -54,12 +31,6 @@ int main(int argc, char *argv[])
             default:
                 getUserInput();
                 // Returns argv and argc as shellArgv, shellArgc
-                #ifdef DEBUG
-                shellArgv[0] = "ls";
-                shellArgv[1] = "|";
-                shellArgv[2] = "cat";
-                shellArgc = 3;
-                #endif
 
                 char *environment = getenv("PATH");
                 strcat(environment, ";/Users/sang/Desktop/C++/sangsch/src/bin");
@@ -233,4 +204,23 @@ void destroyBuffer()
     redirect.input = redirect.output = redirect.oFlags = 0;
     pipeS.pipe[0] = pipeS.pipe[1] = -1;
     shellArgc = bufferCount = 0;
+}
+
+void printWelcomeScreen()
+{
+    int i;
+
+    printf("\n-------------------------------------------------\n");
+    printf(ANSI_COLOR_GREEN "\tsangsch designed and implemented by: \n" ANSI_COLOR_RESET);
+    for (i = 0; people[i] != NULL; ++i)
+        printf(ANSI_COLOR_BLUE "\t\t%s\n", people[i]);
+    printf(ANSI_COLOR_RESET "-------------------------------------------------\n");
+    printf("\n\n");
+
+}
+
+void printShellPrompt()
+{
+    user = getpwuid(geteuid());
+    printf(ANSI_COLOR_CYAN "%s $ " ANSI_COLOR_RESET , user->pw_name);
 }
