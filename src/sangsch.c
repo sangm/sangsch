@@ -65,8 +65,6 @@ int main(int argc, char *argv[])
                 strcat(environment, ";/Users/sang/Desktop/C++/sangsch/src/bin");
                 putenv(environment);
                 environment = getenv("PATH");
-                printf("%s\n", environment);
-                exit(1);
 
                 // Check for >>, <, >, |
                 while ((checkForString(shellArgv, shellArgc, ">>") == 0) 
@@ -231,7 +229,7 @@ void destroyBuffer()
         pipeS.inPipeArgs[i] = pipeS.outPipeArgs[i] = NULL;
         ++i;
     }
-    if (redirect.file) { free(redirect.file); redirect.file = "\0";}
+    if (redirect.file) { redirect.file = "\0";}
     redirect.input = redirect.output = redirect.oFlags = 0;
     pipeS.pipe[0] = pipeS.pipe[1] = -1;
     shellArgc = bufferCount = 0;
