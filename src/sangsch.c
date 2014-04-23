@@ -25,6 +25,7 @@ int main(int argc, char *argv[])
     while(1) {
         printShellPrompt();
         userInput = getchar();
+        appendEnv();
         int status, fdin = 0, fdout = 1, pipeStatus = 0;
         switch(userInput) {
             case '\n':
@@ -223,7 +224,11 @@ void printShellPrompt()
 
 void appendEnv()
 {
-    char localEnv[256]; 
-    localEnv = getenv("PATH");
-
+    char localEnv[256];
+    char *localEnvp;
+    const char *path = ":/Users/sang/Desktop/C++/sangsch/bin";
+    localEnvp = getenv("PATH");
+    strcpy(localEnv, localEnvp);
+    strcat(localEnv, path);
+    setenv("PATH", localEnv, 1);
 }
