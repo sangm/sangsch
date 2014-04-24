@@ -33,8 +33,12 @@ int main(int argc, char *argv[])
             case '\n':
                 break;
             default:
-                getUserInput();
+//                getUserInput();
                 // Returns argv and argc as shellArgv, shellArgc
+
+                shellArgv[0] = "cat";
+                shellArgv[1] = "$(ls)";
+                shellArgc = 2;
 
                 // Check for >>, <, >, |
                 while ((checkForString(shellArgv, shellArgc, ">>") == 0) 
@@ -76,17 +80,12 @@ int main(int argc, char *argv[])
                             shellArgc--;
                             shellArgv[dIndex] = '\0';
                             arg = strtok(buffer, "\n");
-                            shellArgv[dIndex] = arg;
-
                             while(arg != NULL && shellArgc < 5) {
                                 shellArgv[dIndex] = arg;
                                 dIndex++;
                                 shellArgc++;
                                 arg = strtok(NULL, "\n");
-                                break;
                             }
-                            printf("shellarg: %d\n", shellArgc);
-                            printShell(shellArgv);
                            /* while(arg != NULL) {
                                 shellArgv[dIndex++] = arg;
                                 arg = strtok(NULL, "\n");
@@ -95,10 +94,13 @@ int main(int argc, char *argv[])
                             printShell(shellArgv);
                             */
                             remove("tempFile");
+                            break;
                     }
 
                 }
 
+                printShell(shellArgv);
+                printf("===\nshellArgc: %d\n===\n", shellArgc);
 
                 pid_t pid, pid2;
                 pid = fork();
