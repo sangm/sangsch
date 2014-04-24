@@ -1,8 +1,2 @@
-all: build
-	@./mycp foo -R bar
-
-build: mycp.c
+all: mycp.c
 	@gcc mycp.c -o mycp
-
-clean:
-	@rm -rf mycp bar
