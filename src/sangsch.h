@@ -33,6 +33,11 @@ struct pipeStruct {
     char *outPipeArgs[5];
 } pipeS;
 
+struct d_struct {
+    char *comm;
+    char *argv[5];
+} dStruct;
+
 const char *people[] = {
     "Sang Mercado",
     "Jared Pruett",

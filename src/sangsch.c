@@ -8,6 +8,7 @@ void getUserInput();
 void populateGetArgs();
 void destroyBuffer();
 void appendEnv();
+char *checkForDollar(char *argv[], int argc);
 int checkForString(char *args[], int argCount, char *target);
 
 void printShell(char *arg[])
@@ -45,6 +46,38 @@ int main(int argc, char *argv[])
                     if (pipe(pipeS.pipe) < 0) perror("Pipe failed: ");
                     pipeStatus = 1;
                 }
+
+                char *dCommand = checkForDollar(shellArgv, shellArgc);
+                if (dCommand != NULL) {
+                    // Execute the command
+                    pid_t pid;
+                    int fd;
+                    int status;
+                    fd = open("sangschFile", O_RDWR | O_CREAT | O_APPEND);
+                    perror("fd: ");
+//                    fd = dup(0);
+                    pid = fork();
+                    switch(pid) {
+                        case -1: 
+                            printf("Fork failed\n");
+                            exit(1);
+                        case 0:
+                            dup2(fd, 1);
+                            printf("%d %d\n", fd, fileno(stdout));
+                            close(fd);
+                            execvp("ls", shellArgv);
+                            exit(1);
+                        default:
+                            wait(&status);
+                            char buffer[256];
+//                            remove("/tmp/sangschFile");
+                            close(fd);
+                            exit(1);
+                    }
+
+                }
+
+
                 pid_t pid, pid2;
                 pid = fork();
                 if (pid < 0) {
@@ -168,6 +201,31 @@ int checkForString(char *args[], int argCount, char *target)
     }
     return -1;
 }
+
+char *checkForDollar(char *argv[], int argc)
+{
+    // Argv should be processed at this point
+    char *arg;
+    int i = 0;
+    while(argv[i] != NULL) {
+        if ((arg = strpbrk(argv[i], "$")) != NULL)
+            break;
+        ++i;
+    }
+    if (i != argc) {// means found
+        int len = strlen(argv[i]);
+        if (argv[i][0] != '$') return NULL;
+        if (argv[i][1] != '\0' && argv[i][1] != '(') return NULL;
+        if (argv[i][len-1] != '\0' && argv[i][len-1] != ')') return NULL;
+        char *c;
+        c = strchr(argv[i], '(');
+        char *t = (char *)malloc(sizeof(argv[i]));;
+        strncpy(t, ++c, len-3);
+        return t;
+    }
+    return NULL;
+}
+
 void getUserInput()
 {
     destroyBuffer();
