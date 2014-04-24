@@ -10,6 +10,7 @@ void destroyBuffer();
 void appendEnv();
 char *checkForDollar(char *argv[], int argc);
 int checkForString(char *args[], int argCount, char *target);
+int dIndex;
 
 void printShell(char *arg[])
 {
@@ -51,28 +52,49 @@ int main(int argc, char *argv[])
                 if (dCommand != NULL) {
                     // Execute the command
                     pid_t pid;
+                    char buffer[256];
+                    char *arg;
                     int fd;
                     int status;
-                    fd = open("sangschFile", O_RDWR | O_CREAT | O_APPEND);
-                    perror("fd: ");
-//                    fd = dup(0);
+                    int n;
+                    fd = open("tempFile", O_RDWR | O_CREAT, 0666);
                     pid = fork();
                     switch(pid) {
                         case -1: 
                             printf("Fork failed\n");
                             exit(1);
+                            break;
                         case 0:
                             dup2(fd, 1);
-                            printf("%d %d\n", fd, fileno(stdout));
-                            close(fd);
-                            execvp("ls", shellArgv);
-                            exit(1);
+                            n = execvp(dCommand, shellArgv);
+                            if (n == -1) {printf("Not executed"); exit(1);}
                         default:
                             wait(&status);
-                            char buffer[256];
-//                            remove("/tmp/sangschFile");
-                            close(fd);
-                            exit(1);
+                            n = open("tempFile", O_RDONLY);
+                            read(n, buffer, 256);
+
+                            shellArgc--;
+                            shellArgv[dIndex] = '\0';
+                            arg = strtok(buffer, "\n");
+                            shellArgv[dIndex] = arg;
+
+                            while(arg != NULL && shellArgc < 5) {
+                                shellArgv[dIndex] = arg;
+                                dIndex++;
+                                shellArgc++;
+                                arg = strtok(NULL, "\n");
+                                break;
+                            }
+                            printf("shellarg: %d\n", shellArgc);
+                            printShell(shellArgv);
+                           /* while(arg != NULL) {
+                                shellArgv[dIndex++] = arg;
+                                arg = strtok(NULL, "\n");
+                                shellArgc++;
+                            }
+                            printShell(shellArgv);
+                            */
+                            remove("tempFile");
                     }
 
                 }
@@ -221,6 +243,7 @@ char *checkForDollar(char *argv[], int argc)
         c = strchr(argv[i], '(');
         char *t = (char *)malloc(sizeof(argv[i]));;
         strncpy(t, ++c, len-3);
+        dIndex = i;
         return t;
     }
     return NULL;
@@ -258,7 +281,7 @@ void destroyBuffer()
     if (redirect.file) { redirect.file = "\0";}
     redirect.input = redirect.output = redirect.oFlags = 0;
     pipeS.pipe[0] = pipeS.pipe[1] = -1;
-    shellArgc = bufferCount = 0;
+    shellArgc = bufferCount = dIndex = 0;
 }
 
 void printWelcomeScreen()
