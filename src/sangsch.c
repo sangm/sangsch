@@ -33,12 +33,8 @@ int main(int argc, char *argv[])
             case '\n':
                 break;
             default:
-//                getUserInput();
+                getUserInput();
                 // Returns argv and argc as shellArgv, shellArgc
-
-                shellArgv[0] = "cat";
-                shellArgv[1] = "$(ls)";
-                shellArgc = 2;
 
                 // Check for >>, <, >, |
                 while ((checkForString(shellArgv, shellArgc, ">>") == 0) 
@@ -70,13 +66,13 @@ int main(int argc, char *argv[])
                             break;
                         case 0:
                             dup2(fd, 1);
-                            n = execvp(dCommand, shellArgv);
+                            n = execlp(dCommand, dCommand, NULL);
                             if (n == -1) {printf("Not executed"); exit(1);}
                         default:
                             wait(&status);
                             n = open("tempFile", O_RDONLY);
                             read(n, buffer, 256);
-
+                            /*
                             shellArgc--;
                             shellArgv[dIndex] = '\0';
                             arg = strtok(buffer, "\n");
@@ -86,21 +82,39 @@ int main(int argc, char *argv[])
                                 shellArgc++;
                                 arg = strtok(NULL, "\n");
                             }
-                           /* while(arg != NULL) {
+                            while(arg != NULL) {
                                 shellArgv[dIndex++] = arg;
                                 arg = strtok(NULL, "\n");
                                 shellArgc++;
                             }
                             printShell(shellArgv);
+                            
                             */
+
+                            shellArgc--;
+                            shellArgv[dIndex] = '\0';
+                            arg = strtok(buffer, "\n");
+                            while (arg != NULL) {
+                                int stat;
+                                pid_t pid;
+                                pid = fork();
+                                shellArgv[dIndex] = arg;
+                                dIndex++;
+                                shellArgc++;
+
+                                if (pid == 0)
+                                    execlp(shellArgv[0], shellArgv[0], arg, NULL);
+                                else if (pid > 0) 
+                                    wait(&stat);
+                                arg = strtok(NULL, "\n");
+                            }
+
                             remove("tempFile");
                             break;
                     }
 
                 }
 
-                printShell(shellArgv);
-                printf("===\nshellArgc: %d\n===\n", shellArgc);
 
                 pid_t pid, pid2;
                 pid = fork();
