@@ -87,7 +87,7 @@ int reg_file_cp(const char *to, const char *from)
 	stat(from, &st);
 
 	fd_from = open(from, O_RDONLY);
-	if(fd_from < 0) return -1;
+	if(fd_from < 0){ perror("mycp failed due to: "); return -1; }
 
 	//printf("in reg_file_cp: %s - %o\n", to, st.st_mode);
 	

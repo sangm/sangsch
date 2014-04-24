@@ -23,12 +23,17 @@ void printShell(char *arg[])
 
 int main(int argc, char *argv[])
 {
+    pipeS.inPipe = NULL;
+    pipeS.outPipe = NULL;
+
     printWelcomeScreen();
+    appendEnv();
     while(1) {
         printShellPrompt();
         userInput = getchar();
-        appendEnv();
-        int status, fdin = 0, fdout = 1, pipeStatus = 0;
+
+        int status, 
+        fdin = 0, fdout = 1, pipeStatus = 0;
         switch(userInput) {
             case '\n':
                 break;
@@ -38,10 +43,20 @@ int main(int argc, char *argv[])
 
                 // Check for >>, <, >, |
                 while ((checkForString(shellArgv, shellArgc, ">>") == 0) 
-                  || checkForString(shellArgv, shellArgc, ">") == 0)
+                  || checkForString(shellArgv, shellArgc, ">") == 0) {
                     fdout = open(redirect.file, redirect.oFlags, 0600);
-                while ((checkForString(shellArgv, shellArgc, "<") == 0))
+//                    if(redirect.file != NULL) {
+//                        free(redirect.file);
+//                        redirect.file = NULL;
+//                    }
+                    }
+                while ((checkForString(shellArgv, shellArgc, "<") == 0)) {
                     fdin = open(redirect.file, redirect.oFlags);
+//                    if(redirect.file != NULL) {
+//                        free(redirect.file);
+ //                       redirect.file = NULL;
+  //                  }
+                }
 
                 if (checkForString(shellArgv, shellArgc, "|") == 0) {
                     if (pipe(pipeS.pipe) < 0) perror("Pipe failed: ");
@@ -70,27 +85,9 @@ int main(int argc, char *argv[])
                             if (n == -1) {printf("Not executed"); exit(1);}
                         default:
                             wait(&status);
+                            free(dCommand);
                             n = open("tempFile", O_RDONLY);
                             read(n, buffer, 256);
-                            /*
-                            shellArgc--;
-                            shellArgv[dIndex] = '\0';
-                            arg = strtok(buffer, "\n");
-                            while(arg != NULL && shellArgc < 5) {
-                                shellArgv[dIndex] = arg;
-                                dIndex++;
-                                shellArgc++;
-                                arg = strtok(NULL, "\n");
-                            }
-                            while(arg != NULL) {
-                                shellArgv[dIndex++] = arg;
-                                arg = strtok(NULL, "\n");
-                                shellArgc++;
-                            }
-                            printShell(shellArgv);
-                            
-                            */
-
                             shellArgc--;
                             shellArgv[dIndex] = '\0';
                             arg = strtok(buffer, "\n");
@@ -108,13 +105,11 @@ int main(int argc, char *argv[])
                                     wait(&stat);
                                 arg = strtok(NULL, "\n");
                             }
-
                             remove("tempFile");
                             break;
                     }
 
                 }
-
 
                 pid_t pid, pid2;
                 pid = fork();
@@ -142,7 +137,7 @@ int main(int argc, char *argv[])
                         exit(1);
                     }
                     execvp(shellArgv[0], shellArgv);
-                    printf("Not valid command\n");
+                    printf("%s: not valid command\n", shellArgv[0]);
                 }
                 if (pipeStatus == 1) {
                     pid2 = fork();
@@ -298,6 +293,8 @@ void destroyBuffer()
     redirect.input = redirect.output = redirect.oFlags = 0;
     pipeS.pipe[0] = pipeS.pipe[1] = -1;
     shellArgc = bufferCount = dIndex = 0;
+    if (pipeS.inPipe != NULL) {free(pipeS.inPipe); pipeS.inPipe = NULL;}
+    if (pipeS.outPipe != NULL) {free(pipeS.outPipe); pipeS.outPipe = NULL;}
 }
 
 void printWelcomeScreen()
