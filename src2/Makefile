@@ -1,7 +1,7 @@
 CC = gcc
-CFLAGS = -Wall -pedantic
+CFLAGS = -Wall -g
 
-sangsch: sangsch.c
-	$(CC) $(CFLAGS) -o $@ $^
+reg: sangsch.c
+	$(CC) $(CFLAGS) -o sangsch $^
 debug: sangsch.c
 	$(CC) $(CFLAGS) -DDEBUG -o sangsch $^
