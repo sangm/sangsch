@@ -19,8 +19,9 @@ int main(int argc, char *argv[])
     fdin = pipeStatus = 0;
     fdout = 1;
     user = getpwuid(geteuid());
-    printWelcomeScreen();
     appendEnv();
+    printWelcomeScreen();
+
     #ifndef DEBUG
     while(1) {
         printShellPrompt();
@@ -64,13 +65,15 @@ int main(int argc, char *argv[])
                     exit(1);
                 }
                 else if (pid == 0) {
-                    if (Redirect.output == 1) {
-                        dup2(fdout, 1);
-                        close(fdout);
-                    }
-                    if (Redirect.input == 1) {
+                    if (Redirect.file) {
+                        if (Redirect.output == 1) {
+                            dup2(fdout, 1);
+                            close(fdout);
+                        }
+                        if (Redirect.input == 1) {
                         dup2(fdin, 0);
                         close(fdin);
+                        }
                     }
                     if (pipeStatus == 1) {
                         dup2(Pipe.pipe[1], 1);
@@ -86,25 +89,23 @@ int main(int argc, char *argv[])
                 }
                 if (pipeStatus == 1) {
                     pid2 = fork();
-                    switch(pid2) {
-                        case -1:
-                            perror("pid2 fork failed due to: ");
-                            exit(1);
-                        case 0:
-                            dup2(Pipe.inPipe[0], 0);
-                            close(Pipe.pipe[0]);
-                                close(Pipe.pipe[1]);
-                                execvp(Pipe.outPipe, Pipe.outPipeArgs);
-                                printf("%s not valid command\n", Pipe.outPipe);
-                                exit(1);
-                            default:
-                                close(Pipe.pipe[0]);
-                                close(Pipe.pipe[1]);
-                        }
+                    if (pid2 < 0) {
+                        perror("Fork failed due to: ");
+                        exit(1);
                     }
+                    else if (pid2 == 0) {
+                        dup2(Pipe.inPipe[0], 0);
+                        close(Pipe.pipe[0]);
+                        close(Pipe.pipe[1]);
+                        execvp(Pipe.outPipe, Pipe.outPipeArgs);
+                        printf("%s not valid command\n", Pipe.outPipe);
+                        exit(1);
+                    }
+                }
                 if (pipeStatus == 1)
                     while(pid + pid2 > 0) {
-                        int p = wait(NULL);
+                        int p;
+                        p = wait(NULL);
                         if (p == pid) pid = 0;
                         if (p == pid2) pid = 0;
                     }

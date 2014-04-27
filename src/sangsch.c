@@ -1,15 +1,16 @@
 #include "sangsch.h"
 
+/* Functions for printing to shell */
 void printWelcomeScreen();
 void printShellPrompt();
-void getTextFromShell();
+void printShell(char *arg[]);
 
 void getUserInput();
 void populateGetArgs();
 void destroyBuffer();
 void appendEnv();
 char *checkForDollar(char *argv[], int argc);
-int checkForString(char *args[], int argCount, char *target);
+int processArgs(char *args[], int argCount, char *target);
 int dIndex;
 
 void printShell(char *arg[])
@@ -23,17 +24,18 @@ void printShell(char *arg[])
 
 int main(int argc, char *argv[])
 {
-    pipeS.inPipe = NULL;
-    pipeS.outPipe = NULL;
-
-    printWelcomeScreen();
     appendEnv();
+    printWelcomeScreen();
     while(1) {
         printShellPrompt();
         userInput = getchar();
 
-        int status, 
-        fdin = 0, fdout = 1, pipeStatus = 0;
+        int status, fdin, fdout, pipeStatus; 
+        Redirect.file = NULL;
+        Pipe.inPipe = NULL;
+        Pipe.outPipe = NULL;
+        fdin = pipeStatus = 0;
+        fdout = 1;
         switch(userInput) {
             case '\n':
                 break;
@@ -42,24 +44,16 @@ int main(int argc, char *argv[])
                 // Returns argv and argc as shellArgv, shellArgc
 
                 // Check for >>, <, >, |
-                while ((checkForString(shellArgv, shellArgc, ">>") == 0) 
-                  || checkForString(shellArgv, shellArgc, ">") == 0) {
-                    fdout = open(redirect.file, redirect.oFlags, 0600);
-//                    if(redirect.file != NULL) {
-//                        free(redirect.file);
-//                        redirect.file = NULL;
-//                    }
-                    }
-                while ((checkForString(shellArgv, shellArgc, "<") == 0)) {
-                    fdin = open(redirect.file, redirect.oFlags);
-//                    if(redirect.file != NULL) {
-//                        free(redirect.file);
- //                       redirect.file = NULL;
-  //                  }
+                while ((processArgs(shellArgv, shellArgc, ">>") == 0) || 
+                        processArgs(shellArgv, shellArgc, ">")  == 0) {
+                    fdout = open(Redirect.file, Redirect.oFlags, 0600);
+                }
+                while ((processArgs(shellArgv, shellArgc, "<") == 0)) {
+                    fdin = open(Redirect.file, Redirect.oFlags);
                 }
 
-                if (checkForString(shellArgv, shellArgc, "|") == 0) {
-                    if (pipe(pipeS.pipe) < 0) perror("Pipe failed: ");
+                if (processArgs(shellArgv, shellArgc, "|") == 0) {
+                    if (pipe(Pipe.pipe) < 0) perror("Pipe failed: ");
                     pipeStatus = 1;
                 }
 
@@ -118,20 +112,20 @@ int main(int argc, char *argv[])
                     exit(1);
                 } 
                 else if (pid == 0) {
-                    if (redirect.file) 
-                        if (redirect.output == 1) {
+                    if (Redirect.file) 
+                        if (Redirect.output == 1) {
                             dup2(fdout, 1);
                             close(fdout);
                         }
-                        if (redirect.input == 1) {
+                        if (Redirect.input == 1) {
                             dup2(fdin, 0);
                             close(fdin);
                         }
                     if (pipeStatus == 1) {
-                        dup2(pipeS.pipe[1], 1);
-                        close(pipeS.pipe[1]);
-                        close(pipeS.pipe[0]);
-                        execvp(pipeS.inPipe, pipeS.inPipeArgs);
+                        dup2(Pipe.pipe[1], 1);
+                        close(Pipe.pipe[1]);
+                        close(Pipe.pipe[0]);
+                        execvp(Pipe.inPipe, Pipe.inPipeArgs);
                         // if execvp returns negative
                         printf("Not valid command\n");
                         exit(1);
@@ -142,15 +136,15 @@ int main(int argc, char *argv[])
                 if (pipeStatus == 1) {
                     pid2 = fork();
                     if (pid2 == 0) {
-                        dup2(pipeS.pipe[0], 0);
-                        close(pipeS.pipe[0]);
-                        close(pipeS.pipe[1]);
-                        execvp(pipeS.outPipe, pipeS.outPipeArgs);
+                        dup2(Pipe.pipe[0], 0);
+                        close(Pipe.pipe[0]);
+                        close(Pipe.pipe[1]);
+                        execvp(Pipe.outPipe, Pipe.outPipeArgs);
                         printf("Not valid command\n");
                         exit(1);
                     }
-                    close(pipeS.pipe[0]);
-                    close(pipeS.pipe[1]);
+                    close(Pipe.pipe[0]);
+                    close(Pipe.pipe[1]);
                 }
                 if (pipeStatus == 1)
                     while(pid + pid2 > 0) {
@@ -160,70 +154,64 @@ int main(int argc, char *argv[])
                     }
                 else
                     wait(&status);
-                if (redirect.output == 1) close(fdout);
-                if (redirect.input == 1) close(fdin);
+                if (Redirect.output == 1) close(fdout);
+                if (Redirect.input == 1) close(fdin);
                 break;
         }
     }
 }
 
-int checkForString(char *args[], int argCount, char *target) 
+int processArgs(char *args[], int argCount, char *target) 
 {
     int i;
     int result;
 
     for (i = 0; i < argCount; ++i) {
         if ((result = strcmp(args[i], target)) == 0) {
-            if (args[i+1] == NULL) { 
-                return -1;
-            }
-            else if (strcmp(args[i+1], target) == 0) {
+            if (args[i+1] == NULL || (strcmp(args[i+1], target) == 0)) { 
                 fprintf(stdout, "Syntax error near %s \n", args[i]);
                 return -1;
             }
             else {
-                // Next argument is valid
+                /* Next argument is valid */
                 if (strcmp(target, ">>") == 0) {
-                    redirect.oFlags = O_WRONLY | O_CREAT | O_APPEND;
-                    redirect.output = 1;
+                    Redirect.oFlags = O_WRONLY | O_CREAT | O_APPEND;
+                    Redirect.output = 1;
                 }
                 else if (strcmp(target, ">") == 0) {
-                    redirect.oFlags = O_WRONLY | O_CREAT | O_TRUNC;
-                    redirect.output = 1;
+                    Redirect.oFlags = O_WRONLY | O_CREAT | O_TRUNC;
+                    Redirect.output = 1;
                 }
                 else if (strcmp(target,"<") == 0) {
-                    redirect.oFlags = O_RDONLY;
-                    redirect.input = 1;
+                    Redirect.oFlags = O_RDONLY;
+                    Redirect.input = 1;
                 }
                 else if (strcmp(target, "|") == 0) {
                     int strlength;
                     int j, k = 0;
                     strlength = strlen(args[0]) + 1;
-                    pipeS.inPipe = (char *)malloc(strlength);
-                    strcpy(pipeS.inPipe, args[0]);
+                    Pipe.inPipe = (char *)malloc(strlength);
+                    strcpy(Pipe.inPipe, args[0]);
                     for (j = 0; j < i; ++j)
-                        pipeS.inPipeArgs[j] = args[j];
-                    pipeS.inPipeArgs[j] = NULL;
+                        Pipe.inPipeArgs[j] = args[j];
+                    Pipe.inPipeArgs[j] = NULL;
 
                     strlength = strlen(args[i+1]) + 1;
-                    pipeS.outPipe = (char *)malloc(strlength);
-                    strcpy(pipeS.outPipe, args[i+1]);
+                    Pipe.outPipe = (char *)malloc(strlength);
+                    strcpy(Pipe.outPipe, args[i+1]);
                     for (j = i + 1; j < argCount; ++j)
-                        pipeS.outPipeArgs[k++] = args[j];
-                    pipeS.outPipeArgs[k] = NULL;
+                        Pipe.outPipeArgs[k++] = args[j];
+                    Pipe.outPipeArgs[k] = NULL;
                 }
-                // Shift all the args down 1
-                // argv = [cat, foo, >>, foo1]
-                // argv = [cat, foo] -> stdout points to foo
-                // Check for 1 off error when I get some sleep :)
-                if (redirect.output == 1 || redirect.input == 1) {
+                if (Redirect.output == 1 || Redirect.input == 1) {
                     int strlength = strlen(args[i+1])+1;
-                    redirect.file = (char *)malloc(strlength);
-                    strcpy(redirect.file, args[i+1]);
+                    Redirect.file = (char *)malloc(strlength);
+                    strcpy(Redirect.file, args[i+1]);
                 }
-                // This won't work for second half. Have to implement 
-                // If the second half is longer than 1, eliminate the rest
-                // For piping :)
+                /* This won't work for second half. Have to implement 
+                 * If the second half is longer than 1, eliminate the rest
+                 * For piping :)
+                 **/
                 int j;
                 for (j = i; j < shellArgc-1; ++j) 
                     args[j] = args[j+2];
@@ -263,7 +251,7 @@ char *checkForDollar(char *argv[], int argc)
 void getUserInput()
 {
     destroyBuffer();
-    while ((userInput != '\n') && (bufferCount < BUFFER_MAX)) {
+    while ((userInput != '\n') && (bufferCount < MAX_SIZE)) {
         buffer[bufferCount++] = userInput;
         userInput = getchar();
     }
@@ -280,49 +268,69 @@ void populateGetArgs()
     }
     shellArgv[shellArgc] = NULL;
 }
+void emptyArgs(char *argv[])
+{
+    int i;
+    i = 0;
+    while(argv[i])
+        argv[i++] = '\0';
+}
 void destroyBuffer()
 {
-    int i = 0;
-    while(shellArgv[i]) shellArgv[i++] = NULL;
-    i = 0;
-    while(pipeS.inPipeArgs[i] || pipeS.outPipeArgs[i]) {
-        pipeS.inPipeArgs[i] = pipeS.outPipeArgs[i] = NULL;
-        ++i;
-    }
-    if (redirect.file) { redirect.file = "\0";}
-    redirect.input = redirect.output = redirect.oFlags = 0;
-    pipeS.pipe[0] = pipeS.pipe[1] = -1;
+    emptyArgs(shellArgv);
+    emptyArgs(Pipe.inPipeArgs);
+    emptyArgs(Pipe.outPipeArgs);
+
+    if (Redirect.file) { Redirect.file = "\0";}
+    Redirect.input = Redirect.output = Redirect.oFlags = 0;
+    Pipe.pipe[0] = Pipe.pipe[1] = -1;
     shellArgc = bufferCount = dIndex = 0;
-    if (pipeS.inPipe != NULL) {free(pipeS.inPipe); pipeS.inPipe = NULL;}
-    if (pipeS.outPipe != NULL) {free(pipeS.outPipe); pipeS.outPipe = NULL;}
+    if (Pipe.inPipe != NULL) {free(Pipe.inPipe); Pipe.inPipe = NULL;}
+    if (Pipe.outPipe != NULL) {free(Pipe.outPipe); Pipe.outPipe = NULL;}
+    if (Redirect.file != NULL) {free(Redirect.file); Redirect.file = NULL;}
 }
 
 void printWelcomeScreen()
 {
     int i;
-
     printf("\n-------------------------------------------------\n");
     printf(ANSI_COLOR_GREEN "\tsangsch designed and implemented by: \n" ANSI_COLOR_RESET);
     for (i = 0; people[i] != NULL; ++i)
         printf(ANSI_COLOR_BLUE "\t\t%s\n", people[i]);
     printf(ANSI_COLOR_RESET "-------------------------------------------------\n");
     printf("\n\n");
-
 }
 
 void printShellPrompt()
 {
+    struct passwd *user;
+    char buff[MAX_SIZE];
+    if (getcwd(buff, sizeof(buff)) == NULL)
+        perror("Error getting the current directory: ");
     user = getpwuid(geteuid());
-    printf(ANSI_COLOR_CYAN "%s $ " ANSI_COLOR_RESET , user->pw_name);
+    printf(ANSI_COLOR_CYAN "%s:%s $ " ANSI_COLOR_RESET, user->pw_name, buff);
 }
 
 void appendEnv()
 {
-    char localEnv[256];
-    char *localEnvp;
-    const char *path = ":/Users/sang/Desktop/C++/sangsch/bin";
-    localEnvp = getenv("PATH");
-    strcpy(localEnv, localEnvp);
-    strcat(localEnv, path);
-    setenv("PATH", localEnv, 1);
+        /* This function should dynamically allocate length of strings
+         * dynamically, but for the scope of this project, 256 seems fine
+         **/
+        char localEnv[256];
+        char *localEnvp;
+        char buff[MAX_SIZE];
+        char *temp;
+        /* This part violates DRY principle, but... C :p */
+        if (getcwd(buff, sizeof(buff)) == NULL)
+            perror("Error getting the current directory: ");
+
+        temp = strrchr(buff, '/');
+        while(*temp) *temp++ = '\0';
+
+        localEnvp = getenv("PATH");
+        strcpy(localEnv, localEnvp);
+        strcat(localEnv, ":");
+        strcat(buff, "/bin");
+        strcat(localEnv, buff);
+        setenv("PATH", localEnv, 1);
 }
