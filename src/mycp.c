@@ -1,5 +1,4 @@
 #define _XOPEN_SOURCE 500
-#define _GNU_SOURCE
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,131 +7,162 @@
 #include <unistd.h>
 #include <ftw.h>
 #include <dirent.h>
-#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <fcntl.h>
 
-int reg_file_cp(const char *, const char *);
-int my_cp(const char *, const struct stat *, int, struct FTW *);
+int walk(const char *, const struct stat *, int, struct FTW *);
+int mycp(const char *, const char *);
 
-int found_r = 0;
-char *dest = 0;
+char *dest;
+int dest_type = 0;
+int source_type = 0;
+int recurse = 0;
+int true_r = 0;
 
 int main(int argc, char *argv[])
 {
-	if(argc < 3) return 1;
-
-	struct stat st;
+	char replace[1024] = "";
+	char shaved1[1024] = "";
+	char shaved2[1024] = "";
+	struct stat st, st1;
+	char *source;
 	char foo = 0;
 	int opts = -1;
+	int len1, len2;
 
 	while(foo != -1) {
 		foo = getopt(argc, argv, "R");
 		++opts;
 
-		if(foo == 'R') found_r = 1;
+		if(foo == 'R') recurse = 1;
 	}
-
-	if(argc != opts + 3) {
-		fprintf(stderr, "mycp only supports one source and one destination\n");
-		return 1;
-	}
-
-	stat(argv[opts + 1], &st);
 	
-	if(S_ISDIR(st.st_mode)) {
-		if(found_r == 0) {
-			printf("mycp: omitting directory '%s'\n", argv[opts + 1]);
-			return 0;
-		}
+	if(argc != opts + 3) {
+		fprintf(stderr, "mycp only supports one source and one destination :\\\n");
+		exit(1);
 	}
 
+	umask(0000);
+
+	if(stat(argv[opts + 1], &st) == -1) {
+		fprintf(stderr, "mycp: cannot stat \"%s\": No such file or directory\n", argv[opts + 1]);
+		exit(2);
+	};
+	
+	if(S_ISDIR(st.st_mode))
+		source_type = 1;
+
+	if(S_ISDIR(st.st_mode)) {
+		if(recurse == 0) {
+			fprintf(stderr, "mycp: omitting directory \"%s\"\n", argv[opts + 1]);
+			exit(3);
+		}
+
+		true_r = 1;
+	}
+
+	source = argv[opts + 1];
 	dest = argv[opts + 2];
-	nftw(argv[opts + 1], my_cp, 64, FTW_PHYS);
+
+	strcat(shaved1, source);
+	strcat(shaved2, dest);
+	len1 = strlen(source);
+	len2 = strlen(dest);
+	if(shaved1[len1 - 1] == '/') shaved1[len1 - 1] = '\0';
+	if(shaved2[len2 - 1] == '/') shaved2[len2 - 1] = '\0';
+
+	if(strcmp(shaved1, shaved2) == 0) {
+		fprintf(stderr, "mycp: \"%s\" and \"%s\" are the same file\n", source, dest);
+		exit(4);
+	}
+
+	if(stat(dest, &st1) != -1) {
+		if(S_ISDIR(st1.st_mode))
+			dest_type = 1;
+	} else dest_type = 1;
+
+	if(dest_type == 0 && source_type == 1) {
+		fprintf(stderr, "mycp: cannot overwrite non-directory \"%s\" with directory \"%s\"\n", dest, source);
+		exit(4);
+	}
+
+	nftw(source, walk, 64, FTW_PHYS);
 
 	return 0;
 }
 
-int my_cp(const char *path, const struct stat *sb, int flag, struct FTW *ftw)
+int walk(const char *source, const struct stat *sb, int flag, struct FTW *ftw)
 {
 	struct stat st;
-	char new[512] = "";
-	char *sub;
+	char final_dest[512] = "";
+	char *trim = strstr(source, "/");
 
-	strcat(new, dest);
-	stat(path, &st);
+	strcat(final_dest, dest);
+	stat(final_dest, &st);
 
-	sub = strstr(path, "/");
-	if(sub) strcat(new, sub);
-
-	//printf("in my_cp: %s - %o\n", path, st.st_mode);
-
-	if(S_ISREG(st.st_mode))
-		reg_file_cp(new, path);
-	else if(S_ISDIR(st.st_mode))
-		//mkdir(new, S_IRWXU);
-		mkdir(new, st.st_mode);
+	if(S_ISDIR(st.st_mode) && true_r && trim) strcat(final_dest, trim);
+	if(S_ISDIR(sb->st_mode)) {
+		mkdir(final_dest, sb->st_mode);
+	} else {
+		mycp(final_dest, source);
+	}
 
 	return 0;
 }
 
-int reg_file_cp(const char *to, const char *from)
+int mycp(const char *to, const char *from)
 {
-	int fd_to, fd_from;
-	char buf[4096];
+	struct stat st;
+	char buf[512];
 	ssize_t nread;
-	int saved_errno;
-	struct stat st;
+	int fd_to, fd_from;
 
 	stat(from, &st);
 
 	fd_from = open(from, O_RDONLY);
+<<<<<<< HEAD:src/mycp.c
 	if(fd_from < 0){ perror("mycp failed due to: "); return -1; }
+=======
+	if(fd_from < 0) { fprintf(stderr, "mycp: cannot open \"%s\" for reading: %s\n", from, strerror(errno)); return -1; }
+>>>>>>> e508cd2aadb2ee25ff6bcf88a370b98ca9811801:src/mycp/mycp.c
 
-	//printf("in reg_file_cp: %s - %o\n", to, st.st_mode);
-	
-	//fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, 0666);
-	fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, st.st_mode);
-	if(fd_to < 0) goto out_error;
+	fd_to = open(to, O_WRONLY | O_CREAT | O_TRUNC, st.st_mode);
+	if(fd_to < 0) { fprintf(stderr, "mycp: cannot open \"%s\" for writing: %s\n", from, strerror(errno)); goto error; }
 
-	while (nread = read(fd_from, buf, sizeof buf), nread > 0)
-	{
+	while(nread = read(fd_from, buf, sizeof(buf)), nread > 0) {
 		char *out_ptr = buf;
-		ssize_t nwritten;
+		ssize_t writ;
 
 		do {
-			nwritten = write(fd_to, out_ptr, nread);
+			writ = write(fd_to, out_ptr, nread);
 
-			if (nwritten >= 0)
-			{
-				nread -= nwritten;
-				out_ptr += nwritten;
+			if(writ >= 0) {
+				nread -= writ;
+				out_ptr += writ;
+			} else if(errno != EINTR) {
+				fprintf(stderr, "mycp: %s\n", strerror(errno));
+				goto error;
 			}
-			else if (errno != EINTR)
-			{
-				goto out_error;
-			}
-		} while (nread > 0);
+		} while(nread > 0);
 	}
 
-	if (nread == 0)
-	{
-		if (close(fd_to) < 0)
-		{
+	if(nread == 0) {
+		if(close(fd_to) < 0) {
 			fd_to = -1;
-			goto out_error;
+			fprintf(stderr, "mycp: %s\n", strerror(errno));
+			goto error;
 		}
+
 		close(fd_from);
 
 		return 0;
 	}
 
-	out_error:
-	saved_errno = errno;
+	error:
 
 	close(fd_from);
-	if (fd_to >= 0) close(fd_to);
+	if(fd_to >= 0) close(fd_to);
 
-	errno = saved_errno;
 	return -1;
 }
