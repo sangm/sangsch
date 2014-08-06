@@ -10,3 +10,4 @@
     * ~~Parse Commandline Text~~
     * ~~Design the main loop to execute files~~
     * ~~Set up the environment variables~~
+    * Changing directories
